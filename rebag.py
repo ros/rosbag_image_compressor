@@ -15,7 +15,6 @@
 # limitations under the License.
 
 import argparse
-
 from io import BytesIO
 import os
 from PIL import Image
@@ -177,7 +176,7 @@ def main():
     args = parser.parse_args()
     if not args.output_bagfile:
         elements = os.path.splitext(args.input_bagfile)
-        args.output_bagfile = elements[0] + "_%sed" + elements[1]
+        args.output_bagfile = elements[0] + "_%sed" % args.mode + elements[1]
 
     if args.mode == 'compress':
         compress(args.input_bagfile, args.output_bagfile)
