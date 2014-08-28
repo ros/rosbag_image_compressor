@@ -1,6 +1,5 @@
 #!/usr/bin/env python
-
-import sys
+import argparse
 
 from io import BytesIO
 import os
@@ -10,26 +9,18 @@ from sensor_msgs.msg import CompressedImage
 from sensor_msgs.msg import Image as smImage
 from std_msgs.msg import String
 
-bagfile_name = 'head.bag'
-elements = os.path.splitext(bagfile_name)
-output_bagfile_name = elements[0] + "_compressed" + elements[1]
-uncompressed_bagfile_name = elements[0] + "_uncompressed" + elements[1]
-
 
 def compress_image(msg):
+    """
+    Take a sensor_msgs/Image
+    return a sensor_msgs/CompressedImage
+    """
     img = Image.frombytes("L", (msg.width, msg.height), msg.data,
                           'raw', "L", 0, 1)
     # img.show()
     output = BytesIO()
     img.save(output, format='png')
     output.flush()
-
-    if False:
-        # Show the image for debug
-        output.seek(0)
-        i = Image.open(output)
-        i.show()
-        sys.exit(0)
 
     output_msg = CompressedImage()
     output_msg.header = msg.header
@@ -42,6 +33,12 @@ def compress_image(msg):
 
 
 def uncompress_image(compressed_msg, encoding):
+    """
+    Take a sensor_msgs/CompressedImage and encoding
+    This will assume the compression has ignored the encoding and
+    will apply the encoding
+    return a sensor_msgs/Image
+    """
     fh = BytesIO(compressed_msg.data)
     img = Image.open(fh)
 
@@ -56,6 +53,7 @@ def uncompress_image(compressed_msg, encoding):
 
 
 def image_topic_basename(topic):
+    """ A convenience method for stripping the endings off an image topic"""
     endings = ['compressed', 'encoding', 'image_raw']
     for e in endings:
         if topic.endswith(e):
@@ -65,6 +63,10 @@ def image_topic_basename(topic):
 
 
 class EncodingCache:
+
+    """ A class for caching the encoding type for each topic. This will only
+    work if the encoding does not change. """
+
     def __init__(self):
         self.encoding_map = {}
 
@@ -80,51 +82,92 @@ class EncodingCache:
 
 
 def compress(bagfile_in, bagfile_out):
+    """ Iterate over bagfile_in and compress images into bagfile_out """
     with rosbag.Bag(bagfile_in) as bag:
         with rosbag.Bag(bagfile_out, 'w') as outbag:
+            process_log = {}
+            print("Compressing %s into %s" % (bagfile_in, bagfile_out))
             for topic, msg, t in bag.read_messages():
                 if topic.endswith('image_raw'):
-                    print("compressing %s, time is %s" % (topic, t))
+                    # print("compressing %s, time is %s" % (topic, t))
                     bname = image_topic_basename(topic)
                     try:
                         msg, encoding_msg = compress_image(msg)
                         encoding_topic = bname + "encoding"
                         topic = bname + "compressed"
                         outbag.write(encoding_topic, encoding_msg, t)
+                        if bname in process_log:
+                            process_log[bname] += 1
+                        else:
+                            process_log[bname] = 1
                     except Exception as ex:
-                        print("Exception: %s when parsing msg." % ex)
+                        print("Exception: %s when parsing msg. Not compressing" % ex)
+
                 # print("%s" % output_msg)
                 outbag.write(topic, msg, t)
+            if not process_log:
+                print("No images compressed")
+            for t, c in process_log.items():
+                print("Compressed %s message on topic %simage_raw" % (c, t))
 
 
 def uncompress(bagfile_in, bagfile_out):
+    """ Iterate over bagfile_in and decompress images into bagfile_out """
     with rosbag.Bag(bagfile_in) as bag:
         with rosbag.Bag(bagfile_out, 'w') as outbag:
+            process_log = {}
+            print("Decompressing %s into %s" % (bagfile_in, bagfile_out))
             encoding_cache = EncodingCache()
             for topic, msg, t in bag.read_messages():
                 bname = image_topic_basename(topic)
                 if topic.endswith('encoding'):
-                    print("capturing encoding on %s: %s" %
-                          (bname, msg.data))
                     encoding_cache.insert_encoding(bname, msg.data)
                     continue  # do not rewrite the encoding message
                 if topic.endswith('compressed'):
-                    print("uncompressing %s, time is %s" % (topic, t))
+                    # print("uncompressing %s, time is %s" % (topic, t))
                     try:
                         enc = encoding_cache.lookup_encoding(bname)
                         msg = uncompress_image(msg, enc)
                         topic = bname + 'image_raw'
+                        if bname in process_log:
+                            process_log[bname] += 1
+                        else:
+                            process_log[bname] = 1
                     except Exception as ex:
-                        print("Exception: %s when parsing msg." % ex)
-                        raise
+                        print("Exception: %s when parsing msg. Not decompressing" % ex)
 
                 # print("%s" % output_msg)
                 outbag.write(topic, msg, t)
+            if not process_log:
+                print("No images decompressed")
+            for t, c in process_log.items():
+                print("Decompressed %s message on topic %scompressed" % (c, t))
 
 
 def main():
-    compress(bagfile_name, output_bagfile_name)
-    uncompress(output_bagfile_name, uncompressed_bagfile_name)
+    parser = argparse.ArgumentParser(description="Compress or decompress"
+                                                 " images in bag files")
+    valid_modes = ['compress', 'decompress']
+    parser.add_argument('mode',
+                        action='store',
+                        choices=valid_modes,
+                        help='Operating mode, one of %s' % valid_modes)
+    parser.add_argument('input_bagfile',
+                        action='store',
+                        help='Input bag filename')
+    parser.add_argument('--output', '-O',
+                        dest='output_bagfile',
+                        action='store',
+                        help='Output filename. Default: INPUT_MODEed.bag')
+    args = parser.parse_args()
+    if not args.output_bagfile:
+        elements = os.path.splitext(args.input_bagfile)
+        args.output_bagfile = elements[0] + "_%sed" + elements[1]
+
+    if args.mode == 'compress':
+        compress(args.input_bagfile, args.output_bagfile)
+    elif args.mode == 'decompress':
+        uncompress(args.input_bagfile, args.output_bagfile)
 
 if __name__ == '__main__':
     main()
