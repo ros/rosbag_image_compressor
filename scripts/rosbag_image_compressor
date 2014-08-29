@@ -157,10 +157,16 @@ def uncompress(bagfile_in, bagfile_out):
             for t, c in process_log.items():
                 print("Decompressed %s message on topic %scompressed" % (c, t))
 
+command_description = """Compress or decompress images in a bag file. The
+compression is lossless via png. The compressed files are moved to the
+compressed topic such that they can be viewed via standard compressed image
+transport. However the data has not been reencoded. The bagfile stores the
+encoding in a parallel topic 'encoding' in string format for the
+decompression phase."""
+
 
 def main():
-    parser = argparse.ArgumentParser(description="Compress or decompress"
-                                                 " images in bag files")
+    parser = argparse.ArgumentParser(description=command_description)
     valid_modes = ['compress', 'decompress']
     parser.add_argument('mode',
                         action='store',
