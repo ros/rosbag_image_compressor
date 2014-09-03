@@ -2,8 +2,8 @@
 Changelog for package rosbag_image_compressor
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Forthcoming
------------
+0.1.1 (2014-09-03)
+------------------
 * fixing installation
 * Contributors: Tully Foote
 
