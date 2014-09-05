@@ -19,7 +19,8 @@ from rosbag_image_compressor import compress_image,\
 def create_image():
     img_data = [1, 2, 3, 4, 5, 6, 7, 8, 9, 0] * 10
     img_data = "1234567890" * 10
-    image = Image.frombytes('L', (10, 10), img_data)
+    # not available on precise image = Image.frombytes('L', (10, 10), img_data)
+    image = Image.fromstring('L', (10, 10), img_data)
     return image
 
 
