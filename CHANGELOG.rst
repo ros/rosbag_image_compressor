@@ -2,6 +2,11 @@
 Changelog for package rosbag_image_compressor
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* fixing deprecated usage in tests too
+* Contributors: Tully Foote
+
 0.1.2 (2014-09-04)
 ------------------
 * Using deprecated load method for precise compatibility
