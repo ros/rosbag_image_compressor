@@ -2,6 +2,11 @@
 Changelog for package rosbag_image_compressor
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+* fixes `#1 <https://github.com/ros/rosbag_image_compressor/issues/1>`_ output parameter crash by importing os.
+* Contributors: Basheer Subei
+
 0.1.3 (2014-09-04)
 ------------------
 * fixing deprecated usage in tests too
